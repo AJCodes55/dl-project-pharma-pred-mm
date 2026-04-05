@@ -1,0 +1,68 @@
+{
+  "tickers": [
+    "PFE",
+    "JNJ",
+    "MRK",
+    "ABBV",
+    "BMY",
+    "AMGN",
+    "GILD",
+    "BIIB"
+  ],
+  "train_start": "2018-02-20",
+  "train_end": "2021-12-31",
+  "test_start": "2022-01-03",
+  "test_end": "2023-12-29",
+  "sentiment_half_life_days": 5.0,
+  "price_features": [
+    "open",
+    "high",
+    "low",
+    "close",
+    "volume",
+    "rsi",
+    "macd",
+    "macd_signal",
+    "macd_diff",
+    "bb_upper",
+    "bb_middle",
+    "bb_lower",
+    "bb_pct",
+    "bb_width",
+    "log_return",
+    "volume_sma20",
+    "volume_ratio"
+  ],
+  "sentiment_features": [
+    "sent_pos",
+    "sent_neg",
+    "sent_neu",
+    "sent_net",
+    "n_filings"
+  ],
+  "fda_features": [
+    "days_to_event",
+    "evt_ADCOM",
+    "evt_APPROVAL",
+    "evt_CRL",
+    "hist_1d_ret",
+    "hist_5d_ret",
+    "is_event_window",
+    "ta_Bone_Disease",
+    "ta_Cardiology",
+    "ta_Dermatology",
+    "ta_Immunology",
+    "ta_Infectious_Disease",
+    "ta_Neurology",
+    "ta_Oncology",
+    "ta_Psychiatry"
+  ],
+  "clinical_trial_features": [
+    "ct_events_last_20d",
+    "ct_phase2_events_last_5d",
+    "ct_phase3_events_last_5d",
+    "ct_results_posted_last_5d",
+    "ct_terminated_last_20d"
+  ],
+  "target_column": "close"
+}

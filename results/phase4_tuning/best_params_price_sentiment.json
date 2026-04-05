@@ -1,0 +1,38 @@
+{
+  "source": "phase4_hyperparam_tuning.ipynb",
+  "objective": "score_mean = sharpe + 2*cumret - 0.5*|max_drawdown|",
+  "n_trials": 12,
+  "seeds": [
+    7,
+    42
+  ],
+  "timesteps_per_trial": 20000,
+  "val_split_date": "2021-01-01",
+  "best_params": {
+    "learning_rate": 0.00014312907952658717,
+    "n_steps": 512.0,
+    "batch_size": 512.0,
+    "n_epochs": 10.0,
+    "gamma": 0.995,
+    "gae_lambda": 0.9,
+    "ent_coef": 0.001,
+    "clip_range": 0.3,
+    "vf_coef": 0.75
+  },
+  "best_row": {
+    "trial": 8.0,
+    "learning_rate": 0.00014312907952658717,
+    "n_steps": 512.0,
+    "batch_size": 512.0,
+    "n_epochs": 10.0,
+    "gamma": 0.995,
+    "gae_lambda": 0.9,
+    "ent_coef": 0.001,
+    "clip_range": 0.3,
+    "vf_coef": 0.75,
+    "score_mean": -2.83471858010408,
+    "sharpe_mean": -3.1074880905598508,
+    "cumret_mean": 0.1789642757584402,
+    "maxdd_mean": -0.17031808212221905
+  }
+}

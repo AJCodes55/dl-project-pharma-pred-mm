@@ -1,0 +1,39 @@
+date,ticker,event_type,drug_name,therapeutic_area,outcome,source,application_type,active_ingredient,sponsor_raw,px_1d_ret_pct,px_5d_ret_pct
+2019-05-15,ABBV,APPROVAL,Skyrizi (risankizumab),Dermatology,APPROVED,manual,,,,0.43,4.02
+2019-07-30,ABBV,APPROVAL,Rinvoq (upadacitinib),Immunology,APPROVED,manual,,,,0.0,-3.59
+2020-03-04,ABBV,ADCOM,Rinvoq - RA expansion,Immunology,POSITIVE,manual,,,,4.77,-3.11
+2021-01-15,ABBV,APPROVAL,Skyrizi - PsA,Immunology,APPROVED,manual,,,,-0.99,-1.01
+2022-06-17,ABBV,APPROVAL,Rinvoq - CD,Immunology,APPROVED,manual,,,,-0.63,10.05
+2019-04-02,AMGN,APPROVAL,Evenity (romosozumab),Bone Disease,APPROVED,manual,,,,0.34,0.63
+2021-05-28,AMGN,APPROVAL,Lumakras (sotorasib),Oncology,APPROVED,manual,,,,1.12,0.8
+2022-12-14,AMGN,ADCOM,Lumakras full approval,Oncology,NEGATIVE,manual,,,,-0.42,-2.2
+2022-12-15,AMGN,CRL,Lumakras full approval,Oncology,REJECTED,manual,,,,-1.84,-2.17
+2023-10-06,AMGN,APPROVAL,Blincyto (blinatumomab) - MRD+,Oncology,APPROVED,manual,,,,0.9,7.18
+2020-11-06,BIIB,ADCOM,Aducanumab (Aduhelm),Neurology,NEGATIVE,manual,,,,0.0,-24.42
+2021-06-07,BIIB,APPROVAL,Aducanumab (Aduhelm),Neurology,APPROVED,manual,,,,38.34,41.94
+2022-12-20,BIIB,ADCOM,Lecanemab (Leqembi),Neurology,POSITIVE,manual,,,,1.1,-3.64
+2023-01-06,BIIB,APPROVAL,Lecanemab (Leqembi) accelerated,Neurology,APPROVED,manual,,,,2.82,6.06
+2023-07-06,BIIB,APPROVAL,Lecanemab (Leqembi) full approval,Neurology,APPROVED,manual,,,,-0.31,-2.77
+2018-04-16,BMY,APPROVAL,Opdivo (nivolumab) - HCC,Oncology,APPROVED,manual,,,,-7.79,-13.21
+2019-03-20,BMY,ADCOM,Opdivo+Yervoy - NSCLC 1L,Oncology,POSITIVE,manual,,,,-0.83,-3.27
+2020-03-05,BMY,APPROVAL,Zeposia (ozanimod),Neurology,APPROVED,manual,,,,-1.59,-14.2
+2021-03-26,BMY,APPROVAL,Breyanzi (lisocabtagene),Oncology,APPROVED,manual,,,,1.83,1.37
+2022-05-19,BMY,APPROVAL,Opdivo+Yervoy - ESCC,Oncology,APPROVED,manual,,,,-1.38,0.74
+2022-09-16,BMY,APPROVAL,Sotyktu (deucravacitinib),Dermatology,APPROVED,manual,,,,-0.36,-1.49
+2019-10-16,GILD,APPROVAL,Filgotinib - ADCOM (denied vote),Immunology,NEGATIVE,manual,,,,0.08,1.96
+2020-10-22,GILD,APPROVAL,Veklury (remdesivir) full approval,Infectious Disease,APPROVED,manual,,,,0.76,-2.79
+2021-08-20,GILD,CRL,Filgotinib RA,Immunology,REJECTED,manual,,,,1.07,-0.54
+2022-07-22,GILD,APPROVAL,Sunlenca (lenacapavir),Infectious Disease,APPROVED,manual,,,,-0.34,-2.07
+2019-07-01,JNJ,APPROVAL,Esketamine (Spravato),Psychiatry,APPROVED,manual,,,,0.06,1.53
+2021-02-27,JNJ,ADCOM,Janssen COVID-19 Vaccine,Infectious Disease,POSITIVE,manual,,,,0.54,-0.67
+2021-02-27,JNJ,APPROVAL,Janssen COVID-19 Vaccine,Infectious Disease,APPROVED,manual,,,,0.54,-0.67
+2023-08-04,JNJ,APPROVAL,Tecvayli (teclistamab),Oncology,APPROVED,manual,,,,-0.94,1.88
+2018-06-13,MRK,APPROVAL,Keytruda (pembrolizumab) - 1L NSCLC,Oncology,APPROVED,manual,,,,0.24,-1.1
+2019-04-11,MRK,APPROVAL,Keytruda - cervical cancer,Oncology,APPROVED,manual,,,,-1.21,-9.44
+2021-06-07,MRK,APPROVAL,Keytruda - TMB-H solid tumors,Oncology,APPROVED,manual,,,,-1.77,2.68
+2021-12-23,MRK,APPROVAL,Molnupiravir (Lagevrio),Infectious Disease,APPROVED,manual,,,,-0.56,0.63
+2022-10-13,MRK,CRL,Vericiguat - sNDA,Cardiology,REJECTED,manual,,,,2.29,2.79
+2018-12-14,PFE,ADCOM,Tafamidis (Vyndaqel),Cardiology,POSITIVE,manual,,,,-1.73,-5.92
+2019-05-03,PFE,APPROVAL,Tafamidis (Vyndaqel),Cardiology,APPROVED,manual,,,,0.93,0.17
+2021-08-23,PFE,APPROVAL,Comirnaty (COVID vaccine full approval),Infectious Disease,APPROVED,manual,,,,2.48,-4.02
+2022-01-14,PFE,APPROVAL,Paxlovid (nirmatrelvir/ritonavir),Infectious Disease,APPROVED,manual,,,,-1.06,-7.2
