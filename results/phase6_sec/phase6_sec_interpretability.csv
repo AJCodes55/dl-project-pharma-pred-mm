@@ -1,0 +1,5 @@
+filing_recency_bucket,mean_action,buy_ratio,hold_ratio,sell_ratio,n
+filing_0_5d,1.125,0.375,0.375,0.25,4008
+filing_6_20d,,,,,0
+filing_21_90d,,,,,0
+filing_90p,,,,,0

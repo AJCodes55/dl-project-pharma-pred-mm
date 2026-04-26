@@ -1,5 +1,5 @@
 # PharmaTrade-MM — Project Memory & Context Document
-**Last updated:** April 4, 2026  
+**Last updated:** April 18, 2026  
 **Project:** Deep Learning & Multimodal Systems — PharmaTrade-MM  
 **Team:** AAM (Ashutosh Jaiswal, Abhee Anshul, Monisha Kohli)
 
@@ -7,15 +7,16 @@
 
 ## 1. Project Overview
 
-We are building **PharmaTrade-MM**, a domain-specialized multimodal RL agent that trades eight major pharma stocks using three input streams:
+We are building **PharmaTrade-MM**, a domain-specialized multimodal RL agent that trades eight major pharma stocks using multimodal event and market signals:
 
 1. **Price + Technical Indicators** (OHLCV, RSI, MACD, Bollinger Bands)
 2. **Pharma News Sentiment** via FinBERT
 3. **Structured FDA Event Calendar** encoding regulatory decisions, drug pipeline stage, therapeutic area, and historical price reactions
+4. **Clinical Trial Activity Signals** encoding Phase 2/3 activity, results-posted bursts, and termination events
 
-The agent uses **PPO (Proximal Policy Optimization)** with a **CVaR-augmented reward** and **event-aware position sizing** to handle tail-risk around FDA binary events.
+The agent uses **PPO (Proximal Policy Optimization)** with a **CVaR-augmented reward** and **event-aware position sizing** to handle tail-risk around event-heavy regimes.
 
-**Core thesis:** Forward-looking FDA catalysts (scheduled months in advance, can move a stock 30–50% in one session) are far stronger signals for pharma stocks than backward-looking quarterly SEC filings (as used by Nawathe et al. 2024).
+**Core thesis:** Forward-looking FDA catalysts are strong signals, but market moves are also influenced by broader clinical pipeline activity. The agent must learn from both while avoiding spurious attribution to any single event stream.
 
 ### Tickers Traded
 `PFE, JNJ, MRK, ABBV, BMY, AMGN, GILD, BIIB`
@@ -31,8 +32,12 @@ The agent uses **PPO (Proximal Policy Optimization)** with a **CVaR-augmented re
 ### Multimodal State Encoder
 - **Price branch:** 2-layer LSTM, hidden size 128, inputs OHLCV + all technicals
 - **Sentiment branch:** 1-layer LSTM, hidden size 64, inputs daily FinBERT sentiment (pos, neg, neu, net, n_filings)
-- **FDA branch:** Small MLP, inputs FDA event vector (days-to-event, event type one-hot, therapeutic area one-hot, historical reaction) → 64-dim output
-- **Fusion:** Cross-attention (price attends over sentiment), then concatenate with FDA embedding → project to 256-dim state
+- **Event branch:** Small MLP, inputs structured event vector:
+  - FDA features (days-to-event, event type one-hot, therapeutic area one-hot, historical reaction)
+  - Optional clinical trial confound features (`ct_*`)
+  - Confound flag (`ct_confound_flag_5d`) in rich FDA+CT variant
+  → 64-dim output
+- **Fusion:** Cross-attention (price attends over sentiment), then concatenate with event embedding → project to 256-dim state
 
 ### PPO Actor-Critic
 - **Actor:** Outputs Buy/Sell/Hold probabilities
@@ -47,7 +52,8 @@ The agent uses **PPO (Proximal Policy Optimization)** with a **CVaR-augmented re
 | (2) | Price + Sentiment | Tests sentiment value |
 | (3) | Price + Sentiment + SEC Filings | Replicates Nawathe et al. — **build last** |
 | (4) | Price + Sentiment + Basic FDA | Minimal FDA features |
-| (5) | Price + Sentiment + Rich FDA + CVaR | **Full model** |
+| (5) | Price + Sentiment + Rich FDA + CVaR | Rich FDA-only |
+| (5b) | Price + Sentiment + Rich FDA + Clinical Trial Context + CVaR | Confound-aware full model (`rich_fda_ct`) |
 
 ### Evaluation Baselines
 - Buy-and-hold
@@ -60,6 +66,7 @@ Annualized Sharpe Ratio, Maximum Drawdown, Sortino Ratio, Cumulative Return vs. 
 
 ### Interpretability
 Plot agent position size vs. days-to-FDA-event — validates whether the agent learned to reduce exposure pre-event.
+Also inspect action/exposure behavior by clinical-trial activity buckets to assess confound awareness.
 
 ---
 
@@ -202,6 +209,16 @@ This is the pre-expanded version of the FDA calendar — for each event, it crea
 
 Also available: `price_XPH.csv` with full technicals for 2018–2023 (1,476 rows, same format as other price files).
 
+### 3f. Clinical Trials
+
+Clinical trial data is now a first-class signal source:
+
+- `clinical_trials/raw_trials.csv`
+- `clinical_trials/clinical_trial_event_calendar.csv`
+- `clinical_trials/clinical_trial_event_calendar_fda_matched.csv` (optional filtered subset)
+
+For RL state construction, we use daily trailing clinical-trial activity features (ticker-level), not fragile drug-name exact mappings.
+
 ---
 
 ## 4. Data Processing Decisions
@@ -227,6 +244,22 @@ The unified dataset merges price (spine) + enhanced sentiment + FDA features via
 - **Price + Technical (17):** open, high, low, close, volume, rsi, macd, macd_signal, macd_diff, bb_upper, bb_middle, bb_lower, bb_pct, bb_width, log_return, volume_sma20, volume_ratio
 - **Sentiment (5):** sent_pos, sent_neg, sent_neu, sent_net, n_filings
 - **FDA (variable, ~15+):** days_to_event, is_event_window, hist_1d_ret, hist_5d_ret, evt_ADCOM, evt_APPROVAL, evt_CRL, ta_Bone_Disease, ta_Cardiology, ta_Dermatology, ta_Immunology, ta_Infectious_Disease, ta_Neurology, ta_Oncology, ta_Psychiatry
+- **Clinical trial confound context (5+):** ct_phase2_events_last_5d, ct_phase3_events_last_5d, ct_results_posted_last_5d, ct_terminated_last_20d, ct_events_last_20d
+
+### 4d. Confound Handling Strategy (Signal vs Noise)
+
+Problem: stock moves are not always caused by mapped FDA events; unrelated clinical activity and external news can drive returns.
+
+Adopted strategy:
+
+1. Enrich state with trailing clinical-trial activity features (ticker/day).
+2. Add a confound-aware flag (`ct_confound_flag_5d`) in rich FDA+CT modeling.
+3. Keep backward-only windows to avoid leakage.
+
+Key leakage rule:
+
+- **No `±k` future windows in online state features.**
+- Use only trailing windows with `event_date <= trading_day`.
 
 ---
 
@@ -280,25 +313,42 @@ The unified dataset merges price (spine) + enhanced sentiment + FDA features via
 - Implement cross-attention fusion (price attends over sentiment)
 - Train and evaluate
 
-### Phase 5 — Add FDA Calendar (Ablations 4 & 5)
+### Phase 5 — Add FDA Calendar + Clinical Trial Confound Context (Ablations 4, 5, 5b)
 - Activate FDA MLP branch → 64-dim
 - Ablation 4: basic FDA features (days-to-event + event type only)
 - Ablation 5: full rich FDA + CVaR reward active
+- Ablation 5b: rich FDA + clinical trial confound context (`rich_fda_ct`)
 - Build interpretability plot: agent position size vs. days-to-FDA-event
+- Build confound-aware interpretability summary using clinical-trial activity buckets
+
+#### Phase 5 Freeze (Accepted Baseline)
+- **Decision:** Phase 5 is accepted under the lighter local configuration. No additional long-timestep retuning is required before Phase 6.
+- **Artifact freeze:** Keep all generated `results/phase5_*` outputs unchanged as the accepted baseline snapshot.
+- **Exact accepted run config (used for all three ablations):**
+  - `timesteps=60000`
+  - `search_timesteps=15000`
+  - `seeds=7,42`
+  - `window_size=20`
+  - `device=auto`
+  - `val_split_date=2021-01-01`
+  - `sent_clip=3.0`
+  - `seed=42`
 
 ### Phase 6 — SEC Filing Baseline (Ablation 3)
 - Build EDGAR pipeline (see Section 5 above)
 - Swap FDA branch for SEC embedding branch
 - Train and evaluate
 - **Trigger:** Start this when ablations 1, 2, 4, 5 are all working
+- **Status:** Completed (strict SEC pipeline + FinBERT embeddings + Phase 6 PPO evaluation artifacts generated)
 
 ### Phase 7 — Full Evaluation & Analysis
-- Run all 5 ablation variants + classical baselines through same backtest
+- Run all ablation variants + classical baselines through same backtest (including 5b if retained)
 - Comparison table: Sharpe, drawdown, Sortino, cumulative return, alpha, win rate
 - Portfolio performance curves
 - FDA event proximity interpretability plot
 - Statistical significance (bootstrap confidence intervals on Sharpe)
 - Case studies: specific FDA events where agent behavior was notable
+- **Status:** Completed (master cross-phase ranking, bootstrap Sharpe CI, interpretability consolidation, and event case-study outputs generated)
 
 ### Phase 8 — Report, Presentation, Code Cleanup
 - Full course report: related work, methodology, experiments, results, analysis
@@ -332,11 +382,16 @@ The unified dataset merges price (spine) + enhanced sentiment + FDA features via
 | File | Description | Status |
 |------|------------|--------|
 | `phase1_data_pipeline.py` | Phase 1 complete data pipeline script | Written, awaiting Colab run |
-| `unified_dataset.csv` | Merged price + sentiment + FDA features | Will be produced by Phase 1 |
+| `unified_dataset.csv` | Merged price + sentiment + FDA + clinical trial features | Produced by Phase 1 |
 | `train_dataset.csv` | Training split (2018–2021) | Will be produced by Phase 1 |
 | `test_dataset.csv` | Test split (2022–2023) | Will be produced by Phase 1 |
 | `xph_processed.csv` | XPH benchmark with standardized columns | Will be produced by Phase 1 |
 | `feature_config.json` | Feature names, tickers, split dates, config | Will be produced by Phase 1 |
+| `phase5_fda_ppo.py` | Phase 5 runner (`basic_fda`, `rich_fda`, `rich_fda_ct`) | Implemented |
+| `phase5_fda_ppo.ipynb` | Phase 5 Colab/Cursor notebook runbook (zip workflow) | Implemented |
+| `phase5_multimodal_env.py` | Phase 5 env with price/sent/event streams | Implemented |
+| `phase5_multimodal_policy.py` | Phase 5 extractor with event branch + fusion | Implemented |
+| `phase5_sequence_utils.py` | Phase 5 feature contract + confound-aware selections | Implemented |
 
 ---
 
@@ -351,3 +406,37 @@ EXTRACT_ZIP = True                           # set True first run
 ```
 
 **Zip handling:** Data is in a zip file uploaded to Colab. Phase 1 script handles extraction. If zip creates a nested subfolder, uncomment and adjust the `DATA_DIR` reassignment line after extraction.
+
+---
+
+## 11. Final Experiment Summary (Through Phase 7)
+
+### Best-Performing Model
+
+- **Selected winner:** `PPO_Phase6_SEC` (Phase 6, strict SEC filing embedding variant)
+- **Reason for selection:** Best overall cross-metric rank in Phase 7 (`rank_mean = 1.4`) with strongest risk-adjusted return profile.
+
+### Key Results (Test Period: 2022-01-03 to 2023-12-29)
+
+For `PPO_Phase6_SEC`:
+
+- **Cumulative return:** `27.64%`
+- **Annualized Sharpe:** `0.768`
+- **Annualized Sortino:** `1.276`
+- **Max drawdown:** `-15.60%`
+- **Win rate:** `0.527`
+- **Alpha vs XPH (annualized):** `+16.07%`
+
+Primary runner-up (`PPO_Phase5_BasicFDA`):
+
+- **Cumulative return:** `25.43%`
+- **Annualized Sharpe:** `0.613`
+- **Annualized Sortino:** `1.061`
+- **Max drawdown:** `-17.53%`
+- **Alpha vs XPH (annualized):** `+16.13%`
+
+### Caveats / Statistical Interpretation
+
+- Phase 7 bootstrap Sharpe confidence intervals overlap across top strategies, so ranking should be interpreted as **directional strength** rather than strict statistical separation at 95% confidence.
+- Practical interpretation remains strong: `PPO_Phase6_SEC` consistently leads in point estimates for return, Sharpe, and Sortino while maintaining competitive drawdown control.
+- Final conclusion: SEC-text modality adds meaningful signal in this project setup, with the Phase 6 model selected as the final candidate for reporting and presentation.

@@ -21,7 +21,22 @@ from typing import Dict, List, Tuple
 import numpy as np
 import pandas as pd
 
-from phase2_trading_env import DEFAULT_TICKERS, make_env_from_processed
+from phase2_trading_env import DEFAULT_TICKERS
+from phase4_multimodal_env import make_sequence_env_from_processed
+from phase4_multimodal_policy import build_policy_kwargs
+from phase4_sequence_utils import load_sequence_contract, scale_sentiment
+
+
+def to_jsonable(value):
+    if isinstance(value, (str, int, float, bool)) or value is None:
+        return value
+    if isinstance(value, dict):
+        return {str(k): to_jsonable(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [to_jsonable(v) for v in value]
+    if isinstance(value, type):
+        return value.__name__
+    return str(value)
 
 
 def annualized_sharpe(daily_ret: pd.Series) -> float:
@@ -219,6 +234,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--search-timesteps", type=int, default=60_000)
     p.add_argument("--seeds", default="7,42,123", help="Comma-separated seeds for robust search")
     p.add_argument("--val-split-date", default="2021-01-01")
+    p.add_argument("--window-size", type=int, default=20)
     p.add_argument("--sent-clip", type=float, default=3.0)
     p.add_argument("--seed", type=int, default=42)
     return p.parse_args()
@@ -228,31 +244,10 @@ def parse_seeds(seed_text: str) -> List[int]:
     return [int(x.strip()) for x in seed_text.split(",") if x.strip()]
 
 
-def scale_sentiment(
-    train_df: pd.DataFrame,
-    test_df: pd.DataFrame,
-    sent_cols: List[str],
-    clip: float,
-) -> Tuple[pd.DataFrame, pd.DataFrame, Dict[str, Dict[str, float]]]:
-    tr = train_df.copy()
-    te = test_df.copy()
-    stats: Dict[str, Dict[str, float]] = {}
-    for c in sent_cols:
-        mu = float(tr[c].mean())
-        sd = float(tr[c].std(ddof=0))
-        if sd <= 1e-12:
-            sd = 1.0
-        tr[c] = ((tr[c] - mu) / sd).clip(-clip, clip)
-        te[c] = ((te[c] - mu) / sd).clip(-clip, clip)
-        stats[c] = {"mean": mu, "std": sd}
-    return tr, te, stats
-
-
 def train_two_stage(PPO, vec_env, params: Dict, seed: int, total_timesteps: int, stage_frac: float = 0.35):
     p = params.copy()
-    ent_start = float(p.get("ent_coef", 0.001))
     ent_end = float(p.pop("ent_coef_final", 0.0001))
-    model = PPO("MlpPolicy", vec_env, verbose=0, seed=seed, **p)
+    model = PPO("MultiInputPolicy", vec_env, verbose=0, seed=seed, **p)
 
     first = max(1, int(total_timesteps * stage_frac))
     second = max(0, total_timesteps - first)
@@ -277,7 +272,7 @@ def action_distribution(actions_df: pd.DataFrame) -> Dict[str, float]:
 
 def build_param_candidates(base: Dict) -> List[Dict]:
     base = base.copy()
-    base.setdefault("policy_kwargs", {"net_arch": [128, 128]})
+    base.setdefault("policy_kwargs", build_policy_kwargs())
     base.setdefault("ent_coef_final", 0.0001)
     base["n_steps"] = int(base["n_steps"])
     base["batch_size"] = int(base["batch_size"])
@@ -293,7 +288,6 @@ def build_param_candidates(base: Dict) -> List[Dict]:
         {
             "name": "lower_lr_small_net",
             "learning_rate": float(base["learning_rate"]) * 0.5,
-            "policy_kwargs": {"net_arch": [64, 64]},
             "ent_coef": min(float(base.get("ent_coef", 0.001)), 0.001),
             "ent_coef_final": 0.0,
         }
@@ -307,7 +301,6 @@ def build_param_candidates(base: Dict) -> List[Dict]:
             "learning_rate": float(base["learning_rate"]) * 0.3,
             "n_steps": 1024,
             "batch_size": 128,
-            "policy_kwargs": {"net_arch": [64, 64]},
             "ent_coef": 0.001,
             "ent_coef_final": 0.0,
         }
@@ -320,7 +313,6 @@ def build_param_candidates(base: Dict) -> List[Dict]:
             "name": "no_exploration_late",
             "ent_coef": float(base.get("ent_coef", 0.001)),
             "ent_coef_final": 0.0,
-            "policy_kwargs": {"net_arch": [128, 128]},
         }
     )
     cands.append(c3)
@@ -349,7 +341,7 @@ def main() -> None:
 
     cfg = json.loads(Path(args.feature_config_path).read_text())
     seeds = parse_seeds(args.seeds)
-    price_sent_features = cfg["price_features"] + cfg["sentiment_features"]
+    contract = load_sequence_contract(args.feature_config_path, window_size=args.window_size)
     sent_cols = cfg["sentiment_features"]
     ppo_params = load_ppo_params(Path(args.phase4_best_param_json), Path(args.phase3_best_param_json))
     candidate_params = build_param_candidates(ppo_params)
@@ -374,17 +366,18 @@ def main() -> None:
     sub_val_path = results_dir / "_sub_val_scaled.csv"
     sub_train.to_csv(sub_train_path, index=False)
     sub_val.to_csv(sub_val_path, index=False)
-    print("Num features (price+sentiment):", len(price_sent_features))
+    print("Num features (price+sentiment):", len(contract.price_features) + len(contract.sentiment_features))
+    print("Sequence window:", args.window_size)
     print("Base PPO params:", ppo_params)
     print("Robust seeds:", seeds)
     print("Timesteps (final):", args.timesteps, "| search:", args.search_timesteps)
 
     def build_env(dataset_path: str):
-        return make_env_from_processed(
+        return make_sequence_env_from_processed(
             dataset_path=dataset_path,
             feature_config_path=args.feature_config_path,
+            window_size=args.window_size,
             tickers=DEFAULT_TICKERS,
-            feature_columns_override=price_sent_features,
             initial_cash=1_000_000.0,
             transaction_cost=0.001,
             trade_fraction=0.10,
@@ -401,7 +394,13 @@ def main() -> None:
         for s in seeds:
             vec_env = DummyVecEnv([lambda p=str(sub_train_path): build_env(p)])
             train_params = {k: v for k, v in cand.items() if k != "name"}
-            model_tmp = train_two_stage(PPO, vec_env, train_params, seed=s, total_timesteps=args.search_timesteps)
+            model_tmp = train_two_stage(
+                PPO,
+                vec_env,
+                train_params,
+                seed=s,
+                total_timesteps=args.search_timesteps,
+            )
             val_env = build_env(str(sub_val_path))
             perf_tmp, actions_tmp = run_ppo_backtest(val_env, model_tmp, seed=s)
             daily = perf_tmp["daily_return"]
@@ -458,7 +457,7 @@ def main() -> None:
                 "buy_penalty": buy_penalty,
                 "hold_penalty": hold_penalty,
                 "sharpe_gate_penalty": sharpe_gate_penalty,
-                "params": json.dumps({k: v for k, v in cand.items() if k != "name"}),
+                "params": json.dumps(to_jsonable({k: v for k, v in cand.items() if k != "name"})),
             }
         )
         print(
@@ -479,7 +478,31 @@ def main() -> None:
         raise RuntimeError("No candidate config selected.")
     selected_cfg = {k: v for k, v in best_cfg.items() if k != "name"}
     (results_dir / "selected_phase4_params.json").write_text(
-        json.dumps({"selected_name": best_cfg["name"], "params": selected_cfg, "score": best_score}, indent=2)
+        json.dumps(
+            {
+                "selected_name": best_cfg["name"],
+                "params": to_jsonable(selected_cfg),
+                "score": best_score,
+            },
+            indent=2,
+        )
+    )
+    run_meta_path = results_dir / "phase4_run_metadata.json"
+    run_meta_path.write_text(
+        json.dumps(
+            {
+                "architecture": "price_lstm_2x128 + sentiment_lstm_1x64 + cross_attention + fusion_256",
+                "policy_type": "MultiInputPolicy",
+                "window_size": args.window_size,
+                "seeds": seeds,
+                "selected_seed": best_seed,
+                "selected_candidate": best_cfg["name"],
+                "selected_params": to_jsonable(selected_cfg),
+                "search_timesteps": args.search_timesteps,
+                "timesteps": args.timesteps,
+            },
+            indent=2,
+        )
     )
 
     # Final training on full scaled train dataset with selected robust config.
@@ -505,7 +528,6 @@ def main() -> None:
                 "batch_size": 128,
                 "ent_coef": max(float(selected_cfg.get("ent_coef", 0.001)), 0.01),
                 "ent_coef_final": max(float(selected_cfg.get("ent_coef_final", 0.0001)), 0.001),
-                "policy_kwargs": {"net_arch": [64, 64]},
             }
         )
         vec_train_env_fb = DummyVecEnv([lambda p=str(scaled_train_path): build_env(p)])
@@ -601,6 +623,7 @@ def main() -> None:
     print(" -", actions_path)
     print(" -", action_dist_path)
     print(" -", trials_path)
+    print(" -", run_meta_path)
     print(" -", model_path)
     print("\nTop metrics:")
     print(metrics_df.to_string(index=False))

@@ -1,0 +1,71 @@
+{
+  "ablation": "rich_fda_ct",
+  "architecture": "price_lstm_2x128 + sentiment_lstm_1x64 + fda_mlp_64 + cross_attention + fusion_256",
+  "policy_type": "MultiInputPolicy",
+  "window_size": 20,
+  "event_feature_count": 21,
+  "event_features": [
+    "days_to_event",
+    "evt_ADCOM",
+    "evt_APPROVAL",
+    "evt_CRL",
+    "hist_1d_ret",
+    "hist_5d_ret",
+    "is_event_window",
+    "ta_Bone_Disease",
+    "ta_Cardiology",
+    "ta_Dermatology",
+    "ta_Immunology",
+    "ta_Infectious_Disease",
+    "ta_Neurology",
+    "ta_Oncology",
+    "ta_Psychiatry",
+    "ct_events_last_20d",
+    "ct_phase2_events_last_5d",
+    "ct_phase3_events_last_5d",
+    "ct_results_posted_last_5d",
+    "ct_terminated_last_20d",
+    "ct_confound_flag_5d"
+  ],
+  "use_event_scaling": true,
+  "seeds": [
+    7,
+    42
+  ],
+  "selected_seed": 42,
+  "selected_candidate": "low_lr_stable_steps",
+  "selected_params": {
+    "learning_rate": 4.293872385797615e-05,
+    "n_steps": 1024,
+    "batch_size": 128,
+    "n_epochs": 10,
+    "gamma": 0.995,
+    "gae_lambda": 0.9,
+    "ent_coef": 0.001,
+    "vf_coef": 0.75,
+    "clip_range": 0.3,
+    "policy_kwargs": {
+      "features_extractor_class": "Phase5MultimodalExtractor",
+      "features_extractor_kwargs": {
+        "price_hidden": 128,
+        "sent_hidden": 64,
+        "fda_hidden": 64,
+        "fusion_dim": 256,
+        "num_attention_heads": 4
+      },
+      "net_arch": {
+        "pi": [
+          128,
+          64
+        ],
+        "vf": [
+          128,
+          64
+        ]
+      }
+    },
+    "ent_coef_final": 0.0
+  },
+  "search_timesteps": 15000,
+  "timesteps": 60000
+}

@@ -1,0 +1,44 @@
+{
+  "architecture": "price_lstm_2x128 + sentiment_lstm_1x64 + cross_attention + fusion_256",
+  "policy_type": "MultiInputPolicy",
+  "window_size": 20,
+  "seeds": [
+    7,
+    42
+  ],
+  "selected_seed": 42,
+  "selected_candidate": "base_tuned",
+  "selected_params": {
+    "learning_rate": 0.00014312907952658717,
+    "n_steps": 512,
+    "batch_size": 512,
+    "n_epochs": 10,
+    "gamma": 0.995,
+    "gae_lambda": 0.9,
+    "ent_coef": 0.001,
+    "vf_coef": 0.75,
+    "clip_range": 0.3,
+    "policy_kwargs": {
+      "features_extractor_class": "Phase4MultimodalExtractor",
+      "features_extractor_kwargs": {
+        "price_hidden": 128,
+        "sent_hidden": 64,
+        "fusion_dim": 256,
+        "num_attention_heads": 4
+      },
+      "net_arch": {
+        "pi": [
+          128,
+          64
+        ],
+        "vf": [
+          128,
+          64
+        ]
+      }
+    },
+    "ent_coef_final": 0.0001
+  },
+  "search_timesteps": 15000,
+  "timesteps": 60000
+}
